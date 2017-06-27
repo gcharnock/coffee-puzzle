@@ -9,6 +9,7 @@ import System.Random.Shuffle
 import Data.List
 import Data.Ord
 import Data.STRef
+import System.IO
 
 data Player = Player {
   amount :: !Double,
@@ -32,25 +33,31 @@ simulatePot players = runST m
           mapM (simulatePlayer pot) players
 
 newPlayer :: (Monad m, RandomGen g) => RandT g m Player
-newPlayer = Player <$> getRandomR (0.0, 1.0) <*> return 0
+newPlayer = Player <$> getRandomR (0.0, 0.1) <*> return 0
 
-printPlayers :: MonadIO m => [Player] -> m ()
-printPlayers players = do
+printPlayers :: MonadIO m => [Player] -> Handle -> Int -> m ()
+printPlayers players h rounds = do
   let sorted = reverse $ sortOn coffee players
-  forM_ (take 20 sorted) $ \p@Player{amount} ->
-    liftIO $ putStrLn $ (show $ coffee p) ++ ":  " ++ (show amount)
-  where coffee p = (fromIntegral $ score p) * amount p
+      lineFunction = \p@Player{amount} -> (show amount) ++ ":  " ++ (show $ coffee p)
+  forM_ (take 20 sorted) $ \p ->
+    liftIO $ putStrLn $ lineFunction p
+  forM_ sorted $ \p ->
+    liftIO $ hPutStrLn h $ lineFunction p
+  where coffee p = (fromIntegral $ score p) * amount p / fromIntegral rounds
 
 
 prog :: (RandomGen g) => RandT g IO ()
 prog = do
-  playerBase <- replicateM 100 newPlayer
+  playerBase <- replicateM 100 newPlayer >>= (\ps -> return $ ps ++ [Player 0.99 0])
 
-  result <- foldl' (>>=) (return playerBase) $ replicate 10000 $ \dayN -> do
+  let rounds = 1000000
+
+  result <- foldl' (>>=) (return playerBase) $ replicate rounds $ \dayN -> do
     dayNPlus1 <- shuffleM dayN
     return $ simulatePot dayNPlus1
 
-  printPlayers result
+  liftIO $ withFile "result.dat" WriteMode $ \h ->
+    printPlayers result h rounds
 
 main :: IO ()
 main = do
