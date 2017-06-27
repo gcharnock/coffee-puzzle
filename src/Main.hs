@@ -11,8 +11,8 @@ import Data.Ord
 import Data.STRef
 
 data Player = Player {
-  amount :: Double,
-  score :: Int
+  amount :: !Double,
+  score :: !Int
   } deriving Show
 
 
