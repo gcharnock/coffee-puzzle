@@ -3,11 +3,12 @@
 module Main where
 
 import Control.Monad.Random
-import Control.Monad.State
+import Control.Monad.ST
 import Control.Monad.State.Class
 import System.Random.Shuffle
 import Data.List
 import Data.Ord
+import Data.STRef
 
 data Player = Player {
   amount :: Double,
@@ -15,18 +16,20 @@ data Player = Player {
   } deriving Show
 
 
-simulatePlayer :: Player -> State Double Player
-simulatePlayer (Player {amount, score}) = do
-  c <- get
+simulatePlayer :: STRef s Double -> Player -> ST s Player
+simulatePlayer pot (Player {amount, score}) = do
+  c <- readSTRef pot
   if c - amount > 0
-    then do put (c - amount)
+    then do writeSTRef pot (c - amount)
             return (Player {amount, score = score + 1})
-    else do put 1
+    else do writeSTRef pot 1
             return (Player {amount, score})
 
 simulatePot :: [Player] -> [Player]
-simulatePot players = fst $ runState m 1
-  where m = mapM simulatePlayer players
+simulatePot players = runST m
+  where m = do
+          pot <- newSTRef 1
+          mapM (simulatePlayer pot) players
 
 newPlayer :: (Monad m, RandomGen g) => RandT g m Player
 newPlayer = Player <$> getRandomR (0.0, 1.0) <*> return 0
