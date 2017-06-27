@@ -43,7 +43,7 @@ prog :: (RandomGen g) => RandT g IO ()
 prog = do
   playerBase <- replicateM 100 newPlayer
 
-  result <- foldl' (>>=) (return playerBase) $ replicate 1000000 $ \dayN -> do
+  result <- foldl' (>>=) (return playerBase) $ replicate 10000 $ \dayN -> do
     dayNPlus1 <- shuffleM dayN
     return $ simulatePot dayNPlus1
 
